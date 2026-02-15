@@ -1,5 +1,4 @@
-// This is the registration page for the CPQ SaaS application. It includes a form for users to create an account by providing their name, email, and password. The form submission is handled by the `onSubmit` function, which calls the `registerUser` action to create the account. If registration is successful, the user is redirected to the plan selection page with their user ID as a query parameter. Validation errors are displayed below each input field if there are any issues with the submitted data.
-
+// app/(public-pages)/register/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -16,7 +15,6 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
-  // Handle form submission
   async function onSubmit(formData: FormData) {
     setSubmitting(true);
     const result = await registerUser(formData);
@@ -24,8 +22,7 @@ export default function RegisterPage() {
     setSubmitting(false);
 
     if (result.success) {
-      // Redirect to plan selection with user ID as query param
-      router.push(`/select-plan?userId=${result.userId}`);
+      router.push("/select-plan");
     }
   }
 
@@ -40,6 +37,7 @@ export default function RegisterPage() {
         </p>
 
         <form action={onSubmit} className="space-y-4">
+          {/* Name */}
           <div>
             <label
               className="block text-sm font-medium mb-1"
@@ -60,6 +58,7 @@ export default function RegisterPage() {
             )}
           </div>
 
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="email">
               Email
@@ -77,6 +76,7 @@ export default function RegisterPage() {
             )}
           </div>
 
+          {/* Password */}
           <div>
             <label
               className="block text-sm font-medium mb-1"

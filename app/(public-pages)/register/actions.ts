@@ -1,8 +1,9 @@
-// TODO: registerUser server action (SuperTask 3.1)
+// app/(public-pages)/register/actions.ts
 "use server";
 
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseSSRClient } from "@/lib/supabase/ssr";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const registrationSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -11,7 +12,8 @@ const registrationSchema = z.object({
 });
 
 export async function registerUser(formData: FormData) {
-  const supabase = createSupabaseServerClient();
+  const supabaseSSR = createSupabaseSSRClient();
+  const supabaseAdmin = createSupabaseAdminClient();
 
   const raw = {
     email: formData.get("email"),
@@ -30,16 +32,15 @@ export async function registerUser(formData: FormData) {
 
   const { email, password, displayName } = parsed.data;
 
-  // 1) Create user in Supabase Auth
-  const { data: authData, error: authError } =
-    await supabase.auth.admin.createUser({
+  // 1) Sign up using SSR client (sets auth cookies)
+  const { data: signUpData, error: signUpError } =
+    await supabaseSSR.auth.signUp({
       email,
       password,
-      email_confirm: true,
     });
 
-  if (authError || !authData?.user) {
-    console.error("Supabase Auth error:", authError);
+  if (signUpError || !signUpData?.user) {
+    console.error("Supabase signUp error:", signUpError);
     return {
       success: false as const,
       errors: {
@@ -48,10 +49,10 @@ export async function registerUser(formData: FormData) {
     };
   }
 
-  const userId = authData.user.id;
+  const userId = signUpData.user.id;
 
-  // 2) Insert into profiles
-  const { error: profileError } = await supabase.from("profiles").insert({
+  // 2) Insert into profiles using admin client (bypasses RLS for now)
+  const { error: profileError } = await supabaseAdmin.from("profiles").insert({
     user_id: userId,
     tenant_id: null, // will be set after plan selection / tenant creation
     role: "user",
@@ -72,6 +73,5 @@ export async function registerUser(formData: FormData) {
 
   return {
     success: true as const,
-    userId,
   };
 }

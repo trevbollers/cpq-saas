@@ -1,34 +1,20 @@
-// TODO: Select plan page (SuperTask 3.2)
 // app/(public-pages)/select-plan/page.tsx
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { createSupabaseSSRClient } from "@/lib/supabase/ssr";
 import { selectPlan } from "./actions";
+import type { Plan } from "@/lib/types/plans";
 
-type SelectPlanPageProps = {
-  searchParams: { userId?: string };
-};
+export default async function SelectPlanPage() {
+  const supabase = await createSupabaseSSRClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-export default async function SelectPlanPage({
-  searchParams,
-}: SelectPlanPageProps) {
-  const userId = searchParams.userId;
-
-  if (!userId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="bg-white shadow-md rounded-lg p-6 max-w-md">
-          <h1 className="text-xl font-semibold mb-2">
-            Missing user information
-          </h1>
-          <p className="text-sm text-slate-600">
-            We couldn&apos;t identify your account. Please start from
-            registration again.
-          </p>
-        </div>
-      </div>
-    );
+  if (!user) {
+    // no authenticated user → go back to register or login
+    redirect("/register");
   }
 
-  const supabase = createSupabaseServerClient();
   const { data: plans, error } = await supabase
     .from("plans")
     .select("*")
@@ -57,18 +43,9 @@ export default async function SelectPlanPage({
           Select the package that best fits your manufacturing organization.
         </p>
 
-        {/* Tenant/company name */}
-        <div className="max-w-md mb-8">
-          <p className="text-sm text-slate-700 mb-2">
-            Company / Tenant name (used to identify your organization)
-          </p>
-          {/* We’ll reuse this input inside each form; to keep SSR simple, we just ask once per plan submit */}
-        </div>
-
-        {/* Pricing cards */}
         <div className="grid gap-6 md:grid-cols-3">
           {plans?.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} userId={userId} />
+            <PlanCard key={plan.id} plan={plan} />
           ))}
         </div>
       </div>
@@ -76,7 +53,7 @@ export default async function SelectPlanPage({
   );
 }
 
-function PlanCard({ plan, userId }: { plan: any; userId: string }) {
+function PlanCard({ plan }: { plan: Plan }) {
   const price =
     plan.price_monthly_cents && plan.price_monthly_cents > 0
       ? `$${(plan.price_monthly_cents / 100).toFixed(0)}/mo`
@@ -84,13 +61,10 @@ function PlanCard({ plan, userId }: { plan: any; userId: string }) {
 
   return (
     <form
-      action={async (formData) => {
-        await selectPlan(formData);
-      }}
+      action={selectPlan}
       className="flex flex-col bg-white border border-slate-200 rounded-lg shadow-sm p-4"
     >
       <input type="hidden" name="planId" value={plan.id} />
-      <input type="hidden" name="userId" value={userId} />
 
       <h2 className="text-xl font-semibold mb-1">{plan.name}</h2>
       <p className="text-sm text-slate-500 mb-4">{plan.description}</p>
