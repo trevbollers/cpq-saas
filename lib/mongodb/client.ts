@@ -1,0 +1,1 @@
+// MongoDB singleton client placeholder
