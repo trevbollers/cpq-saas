@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 
-echo "í´’ Updating .gitignore..."
-cat <<EOF > .gitignore
+# Automated Git Setup Script
+# Initializes repo, updates .gitignore, commits, sets remote, pushes initial commit
+
+echo "ğŸ”’ Updating .gitignore..."
+cat <<EOGIT > .gitignore
 # Node
 node_modules/
 npm-debug.log*
@@ -14,7 +17,7 @@ pnpm-debug.log*
 out/
 dist/
 
-# Environment files (never commit secrets)
+# Environment files (NEVER commit secrets)
 .env
 .env.*
 .env.local
@@ -24,14 +27,14 @@ dist/
 
 # Logs
 *.log
-logs
+logs/
 *.pid
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
-# Editor directories
+# VS Code
 .vscode/*
 !.vscode/tasks.json
 !.vscode/settings.json
@@ -42,26 +45,26 @@ supabase/.branches
 
 # Build artifacts
 *.tsbuildinfo
-EOF
+EOGIT
 
-echo "í³ Ensuring Git repo is initialized..."
+echo "ğŸ“ Initializing Git repo..."
 git init
 
-echo "í·¹ Removing accidentally staged env files..."
+echo "ğŸ§¹ Ensuring env files are NOT tracked..."
 git rm --cached .env.local 2>/dev/null
 
-echo "í³¦ Staging all project files..."
+echo "ğŸ“¦ Staging all files..."
 git add .
 
-echo "í³ Creating commit..."
-git commit -m "Update .gitignore and initial commit of CPQ SaaS scaffold"
+echo "ğŸ“ Creating initial commit..."
+git commit -m \"Initial CPQ SaaS scaffold with updated .gitignore\"
 
-echo "í´— Setting GitHub remote..."
+echo "ğŸ”— Setting GitHub remote..."
 git remote remove origin 2>/dev/null
 git remote add origin https://github.com/trevbollers/cpq-saas.git
 
-echo "í¼ Pushing to GitHub..."
+echo "ğŸŒ Pushing to GitHub..."
 git branch -M main
 git push -u origin main
 
-echo "í¾‰ Git setup complete!"
+echo "ğŸ‰ Git setup complete!"
