@@ -1,77 +1,115 @@
-// TODO: Registration page (SuperTask 3.1)
-"use server";
+// This is the registration page for the CPQ SaaS application. It includes a form for users to create an account by providing their name, email, and password. The form submission is handled by the `onSubmit` function, which calls the `registerUser` action to create the account. If registration is successful, the user is redirected to the plan selection page with their user ID as a query parameter. Validation errors are displayed below each input field if there are any issues with the submitted data.
 
-import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+"use client";
 
-const registrationSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  displayName: z.string().min(2, "Name is required"),
-});
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { registerUser } from "./actions";
 
-export async function registerUser(formData: FormData) {
-  const supabase = createSupabaseServerClient();
+type RegistrationState = {
+  success?: boolean;
+  errors?: Record<string, string[]>;
+};
 
-  const raw = {
-    email: formData.get("email"),
-    password: formData.get("password"),
-    displayName: formData.get("displayName"),
-  };
+export default function RegisterPage() {
+  const [state, setState] = useState<RegistrationState>({});
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
 
-  const parsed = registrationSchema.safeParse(raw);
+  // Handle form submission
+  async function onSubmit(formData: FormData) {
+    setSubmitting(true);
+    const result = await registerUser(formData);
+    setState(result);
+    setSubmitting(false);
 
-  if (!parsed.success) {
-    return {
-      success: false as const,
-      errors: parsed.error.flatten().fieldErrors,
-    };
+    if (result.success) {
+      // Redirect to plan selection with user ID as query param
+      router.push(`/select-plan?userId=${result.userId}`);
+    }
   }
 
-  const { email, password, displayName } = parsed.data;
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="w-full max-w-md bg-white shadow-md rounded-lg p-6">
+        <h1 className="text-2xl font-bold mb-2">
+          Create your CPQ SaaS account
+        </h1>
+        <p className="text-sm text-slate-600 mb-6">
+          Start configuring products for your manufacturing org.
+        </p>
 
-  // 1) Create user in Supabase Auth
-  const { data: authData, error: authError } =
-    await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
+        <form action={onSubmit} className="space-y-4">
+          <div>
+            <label
+              className="block text-sm font-medium mb-1"
+              htmlFor="displayName"
+            >
+              Name
+            </label>
+            <input
+              id="displayName"
+              name="displayName"
+              type="text"
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {state.errors?.displayName && (
+              <p className="text-xs text-red-600 mt-1">
+                {state.errors.displayName[0]}
+              </p>
+            )}
+          </div>
 
-  if (authError || !authData?.user) {
-    console.error("Supabase Auth error:", authError);
-    return {
-      success: false as const,
-      errors: {
-        email: ["Failed to create user account. Please try again."],
-      },
-    };
-  }
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {state.errors?.email && (
+              <p className="text-xs text-red-600 mt-1">
+                {state.errors.email[0]}
+              </p>
+            )}
+          </div>
 
-  const userId = authData.user.id;
+          <div>
+            <label
+              className="block text-sm font-medium mb-1"
+              htmlFor="password"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {state.errors?.password && (
+              <p className="text-xs text-red-600 mt-1">
+                {state.errors.password[0]}
+              </p>
+            )}
+          </div>
 
-  // 2) Insert into profiles
-  const { error: profileError } = await supabase.from("profiles").insert({
-    user_id: userId,
-    tenant_id: null, // will be set after plan selection / tenant creation
-    role: "user",
-    display_name: displayName,
-  });
+          {state.errors?.general && (
+            <p className="text-xs text-red-600">{state.errors.general[0]}</p>
+          )}
 
-  if (profileError) {
-    console.error("Profile insert error:", profileError);
-    return {
-      success: false as const,
-      errors: {
-        general: [
-          "Account created, but failed to create profile. Please contact support.",
-        ],
-      },
-    };
-  }
-
-  return {
-    success: true as const,
-    userId,
-  };
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-blue-600 text-white text-sm font-semibold py-2 rounded hover:bg-blue-700 disabled:opacity-70"
+          >
+            {submitting ? "Creating account..." : "Create account"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
