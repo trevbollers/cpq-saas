@@ -1,6 +1,6 @@
 // lib/supabase/ssr.ts
-import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 export async function createSupabaseSSRClient() {
   const cookieStore = await cookies();
@@ -13,7 +13,6 @@ export async function createSupabaseSSRClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        // set/remove will be used by Supabase Auth to manage the session cookie
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set(name, value, options);

@@ -15,6 +15,12 @@ export default async function SelectPlanPage() {
     redirect("/register");
   }
 
+  // Check if email is verified
+  if (!user.email_confirmed_at) {
+    // Email not verified yet, send them to check-email page
+    redirect("/check-email");
+  }
+
   const { data: plans, error } = await supabase
     .from("plans")
     .select("*")

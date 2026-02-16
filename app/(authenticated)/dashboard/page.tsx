@@ -1,15 +1,21 @@
 // app/(authenticated)/dashboard/page.tsx
 import { redirect } from "next/navigation";
 import { createSupabaseSSRClient } from "@/lib/supabase/ssr";
+import Link from "next/link";
 
 export default async function DashboardPage() {
-  const supabase = createSupabaseSSRClient();
+  const supabase = await createSupabaseSSRClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/register"); // or /login once you have it
+    redirect("/login");
+  }
+
+  // Check if email is verified
+  if (!user.email_confirmed_at) {
+    redirect("/check-email");
   }
 
   // 1) Load profile

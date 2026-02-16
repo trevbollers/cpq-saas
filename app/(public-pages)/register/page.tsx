@@ -4,15 +4,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerUser } from "./actions";
+// @ts-ignore: no types for zxcvbn in this workspace
+import zxcvbn from "zxcvbn";
 
 type RegistrationState = {
   success?: boolean;
+  authenticated?: boolean;
+  message?: string;
   errors?: Record<string, string[]>;
 };
 
 export default function RegisterPage() {
   const [state, setState] = useState<RegistrationState>({});
   const [submitting, setSubmitting] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [passwordScore, setPasswordScore] = useState<number | null>(null);
   const router = useRouter();
 
   async function onSubmit(formData: FormData) {
@@ -22,7 +28,18 @@ export default function RegisterPage() {
     setSubmitting(false);
 
     if (result.success) {
-      router.push("/select-plan");
+      router.push("/check-email");
+    }
+  }
+
+  function onPasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setPasswordValue(v);
+    try {
+      const r = zxcvbn(v);
+      setPasswordScore(r.score);
+    } catch (err) {
+      setPasswordScore(null);
     }
   }
 
@@ -88,8 +105,35 @@ export default function RegisterPage() {
               id="password"
               name="password"
               type="password"
+              value={passwordValue}
+              onChange={onPasswordChange}
               className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <div className="mt-2">
+              <div className="h-2 w-full bg-slate-200 rounded overflow-hidden">
+                <div
+                  style={{ width: `${((passwordScore ?? 0) + 1) * 20}%` }}
+                  className={`h-full transition-all duration-200 ${
+                    passwordScore === null
+                      ? "bg-slate-300"
+                      : passwordScore <= 1
+                        ? "bg-red-500"
+                        : passwordScore === 2
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
+                  }`}
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {passwordScore === null
+                  ? "Enter a password to see strength"
+                  : passwordScore <= 1
+                    ? "Weak — try longer password with mixed characters"
+                    : passwordScore === 2
+                      ? "Okay — add more length or a symbol"
+                      : "Strong password"}
+              </p>
+            </div>
             {state.errors?.password && (
               <p className="text-xs text-red-600 mt-1">
                 {state.errors.password[0]}

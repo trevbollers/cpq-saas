@@ -1,17 +1,18 @@
-// app/(public-pages)/select-plan/actions.ts
 "use server";
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createSupabaseSSRClient } from "@/lib/supabase/ssr";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const selectPlanSchema = z.object({
-  planId: z.string().uuid("Invalid plan selected"),
+  planId: z.string().min(1, "Invalid plan selected"),
   tenantName: z.string().min(2, "Company / tenant name is required"),
 });
 
 export async function selectPlan(formData: FormData) {
-  const supabase = createSupabaseSSRClient();
+  const supabase = await createSupabaseSSRClient();
+  const supabaseAdmin = createSupabaseAdminClient();
 
   const {
     data: { user },
@@ -27,16 +28,15 @@ export async function selectPlan(formData: FormData) {
   };
 
   const parsed = selectPlanSchema.safeParse(raw);
-
   if (!parsed.success) {
     console.error("Select plan validation error:", parsed.error.flatten());
-    return;
+    redirect("/select-plan");
   }
 
   const { planId, tenantName } = parsed.data;
 
-  // 1) Verify plan is active
-  const { data: plan, error: planError } = await supabase
+  // Verify plan exists and is active (using admin client)
+  const { data: plan, error: planError } = await supabaseAdmin
     .from("plans")
     .select("*")
     .eq("id", planId)
@@ -45,29 +45,25 @@ export async function selectPlan(formData: FormData) {
 
   if (planError || !plan) {
     console.error("Plan lookup error:", planError);
-    return;
+    redirect("/select-plan");
   }
 
-  // 2) Create tenant
-  const { data: tenantData, error: tenantError } = await supabase
+  // Create tenant (admin client)
+  const { data: tenantData, error: tenantError } = await supabaseAdmin
     .from("tenants")
-    .insert({
-      name: tenantName,
-      plan_id: planId,
-      status: "active",
-    })
+    .insert({ name: tenantName, plan_id: planId, status: "active" })
     .select("id")
     .maybeSingle();
 
   if (tenantError || !tenantData) {
     console.error("Tenant creation error:", tenantError);
-    return;
+    redirect("/select-plan");
   }
 
   const tenantId = tenantData.id as string;
 
-  // 3) Create subscription
-  const { error: subError } = await supabase.from("subscriptions").insert({
+  // Create subscription record
+  const { error: subError } = await supabaseAdmin.from("subscriptions").insert({
     tenant_id: tenantId,
     plan_id: planId,
     status: "active",
@@ -75,23 +71,28 @@ export async function selectPlan(formData: FormData) {
 
   if (subError) {
     console.error("Subscription creation error:", subError);
-    return;
+    // attempt cleanup
+    await supabaseAdmin.from("tenants").delete().eq("id", tenantId);
+    redirect("/select-plan");
   }
 
-  // 4) Update profile for the **current user** using session-based auth
-  const { error: profileError } = await supabase
+  // Update user's profile to set tenant and admin role
+  const { error: profileError } = await supabaseAdmin
     .from("profiles")
-    .update({
-      tenant_id: tenantId,
-      role: "admin",
-    })
+    .update({ tenant_id: tenantId, role: "admin" })
     .eq("user_id", user.id);
 
   if (profileError) {
     console.error("Profile update error:", profileError);
-    return;
+    // cleanup
+    await supabaseAdmin
+      .from("subscriptions")
+      .delete()
+      .eq("tenant_id", tenantId);
+    await supabaseAdmin.from("tenants").delete().eq("id", tenantId);
+    redirect("/select-plan");
   }
 
-  // ✅ 5) Redirect to dashboard (session-based, no query params)
+  // Success — go to dashboard
   redirect("/dashboard");
 }
