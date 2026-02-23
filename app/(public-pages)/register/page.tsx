@@ -3,13 +3,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { registerUser } from "./actions";
-// @ts-ignore: no types for zxcvbn in this workspace
 import zxcvbn from "zxcvbn";
 
 type RegistrationState = {
   success?: boolean;
-  authenticated?: boolean;
   message?: string;
   errors?: Record<string, string[]>;
 };
@@ -21,13 +18,28 @@ export default function RegisterPage() {
   const [passwordScore, setPasswordScore] = useState<number | null>(null);
   const router = useRouter();
 
-  async function onSubmit(formData: FormData) {
+  // NEW onSubmit — uses fetch("/api/register")
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setSubmitting(true);
-    const result = await registerUser(formData);
-    setState(result);
+
+    const form = event.currentTarget;
+
+    const res = await fetch("/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: form.displayName.value,
+        email: form.email.value,
+        password: form.password.value,
+      }),
+    });
+
+    const data = await res.json();
+    setState(data);
     setSubmitting(false);
 
-    if (result.success) {
+    if (data.success) {
       router.push("/check-email");
     }
   }
@@ -38,7 +50,7 @@ export default function RegisterPage() {
     try {
       const r = zxcvbn(v);
       setPasswordScore(r.score);
-    } catch (err) {
+    } catch {
       setPasswordScore(null);
     }
   }
@@ -53,7 +65,8 @@ export default function RegisterPage() {
           Start configuring products for your manufacturing org.
         </p>
 
-        <form action={onSubmit} className="space-y-4">
+        {/* IMPORTANT change: remove action={onSubmit}, replace with onSubmit */}
+        <form onSubmit={onSubmit} className="space-y-4">
           {/* Name */}
           <div>
             <label
@@ -66,7 +79,7 @@ export default function RegisterPage() {
               id="displayName"
               name="displayName"
               type="text"
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
             />
             {state.errors?.displayName && (
               <p className="text-xs text-red-600 mt-1">
@@ -84,7 +97,7 @@ export default function RegisterPage() {
               id="email"
               name="email"
               type="email"
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
             />
             {state.errors?.email && (
               <p className="text-xs text-red-600 mt-1">
@@ -107,8 +120,10 @@ export default function RegisterPage() {
               type="password"
               value={passwordValue}
               onChange={onPasswordChange}
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
             />
+
+            {/* Password Strength Bar */}
             <div className="mt-2">
               <div className="h-2 w-full bg-slate-200 rounded overflow-hidden">
                 <div
@@ -134,6 +149,7 @@ export default function RegisterPage() {
                       : "Strong password"}
               </p>
             </div>
+
             {state.errors?.password && (
               <p className="text-xs text-red-600 mt-1">
                 {state.errors.password[0]}

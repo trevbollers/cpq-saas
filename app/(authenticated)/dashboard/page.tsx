@@ -1,10 +1,13 @@
 // app/(authenticated)/dashboard/page.tsx
 import { redirect } from "next/navigation";
 import { createSupabaseSSRClient } from "@/lib/supabase/ssr";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 
 export default async function DashboardPage() {
   const supabase = await createSupabaseSSRClient();
+  const supabaseAdmin = createSupabaseAdminClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -43,8 +46,8 @@ export default async function DashboardPage() {
     redirect("/select-plan");
   }
 
-  // 2) Load tenant
-  const { data: tenant, error: tenantError } = await supabase
+  // 2) Load tenant (use admin client to bypass RLS)
+  const { data: tenant, error: tenantError } = await supabaseAdmin
     .from("tenants")
     .select("id, name, plan_id, status, created_at")
     .eq("id", profile.tenant_id)
@@ -64,8 +67,8 @@ export default async function DashboardPage() {
     );
   }
 
-  // 3) Load plan
-  const { data: plan, error: planError } = await supabase
+  // 3) Load plan (use admin client to bypass RLS)
+  const { data: plan, error: planError } = await supabaseAdmin
     .from("plans")
     .select("code, name, price_monthly_cents, features")
     .eq("id", tenant.plan_id)
@@ -86,7 +89,7 @@ export default async function DashboardPage() {
   }
 
   const price =
-    plan.price_monthly_cents && plan.price_monthly_cents > 0
+    plan?.price_monthly_cents && plan.price_monthly_cents > 0
       ? `$${(plan.price_monthly_cents / 100).toFixed(0)}/mo`
       : "Free";
 

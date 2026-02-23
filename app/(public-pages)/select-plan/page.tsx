@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseSSRClient } from "@/lib/supabase/ssr";
 import { selectPlan } from "./actions";
 import type { Plan } from "@/lib/types/plans";
+import { PlanCard } from "./PlanCard";
 
 export default async function SelectPlanPage() {
   const supabase = await createSupabaseSSRClient();
@@ -56,47 +57,5 @@ export default async function SelectPlanPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function PlanCard({ plan }: { plan: Plan }) {
-  const price =
-    plan.price_monthly_cents && plan.price_monthly_cents > 0
-      ? `$${(plan.price_monthly_cents / 100).toFixed(0)}/mo`
-      : "Free";
-
-  return (
-    <form
-      action={selectPlan}
-      className="flex flex-col bg-white border border-slate-200 rounded-lg shadow-sm p-4"
-    >
-      <input type="hidden" name="planId" value={plan.id} />
-
-      <h2 className="text-xl font-semibold mb-1">{plan.name}</h2>
-      <p className="text-sm text-slate-500 mb-4">{plan.description}</p>
-      <p className="text-2xl font-bold mb-4">{price}</p>
-
-      <label
-        className="text-xs font-medium mb-1"
-        htmlFor={`tenantName-${plan.id}`}
-      >
-        Company / Tenant name
-      </label>
-      <input
-        id={`tenantName-${plan.id}`}
-        name="tenantName"
-        type="text"
-        required
-        className="border border-slate-300 rounded px-2 py-1 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Acme Manufacturing"
-      />
-
-      <button
-        type="submit"
-        className="mt-auto w-full bg-blue-600 text-white text-sm font-semibold py-2 rounded hover:bg-blue-700"
-      >
-        Choose {plan.name}
-      </button>
-    </form>
   );
 }
